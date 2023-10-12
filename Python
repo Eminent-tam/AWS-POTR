@@ -1,0 +1,302 @@
+pip install boto3
+import boto3
+
+ec2 = boto3.resource('ec2')
+
+# Launch an EC2 instance
+instance = ec2.create_instances(
+    ImageId='ami-0c55b159cbfafe1f0',  # Example Amazon Linux 2 AMI, replace with the desired AMI
+    MinCount=1,
+    MaxCount=1,
+    InstanceType='t2.micro',
+    KeyName='YourKeyPair',  # Replace with your key pair name
+    TagSpecifications=[
+        {
+            'ResourceType': 'instance',
+            'Tags': [{'Key': 'Name', 'Value': 'POTR_Server'}]
+        }
+    ]
+)
+/'storage
+print(f"EC2 Instance Created with ID: {instance[0].id}")
+s3 = boto3.client('s3')
+
+bucket_name = "potr-data-bucket"  # Replace with your desired bucket name
+
+s3.create_bucket(Bucket=bucket_name)
+print(f"S3 Bucket Created: {bucket_name}")
+/encryption
+kms = boto3.client('kms')
+
+# Create a KMS key
+key = kms.create_key(
+    Description='POTR_Key',
+    KeyUsage='ENCRYPT_DECRYPT',
+    CustomerMasterKeySpec='SYMMETRIC_DEFAULT',
+)
+
+key_id = key['KeyMetadata']['KeyId']
+print(f"KMS Key Created with ID: {key_id}")
+/permission
+iam = boto3.client('iam')
+
+# Create an IAM role
+role = iam.create_role(
+    RoleName='POTR_Role',
+    AssumeRolePolicyDocument='''{
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {"Service": "ec2.amazonaws.com"},
+          "Action": "sts:AssumeRole"
+        }
+      ]}'''
+)
+
+print(f"IAM Role Created with ARN: {role['Role']['Arn']}")
+/firewall
+# Create a security group inside the VPC
+sec_group = ec2.create_security_group(
+    GroupName='POTR_Security_Group', Description='POTR SG', VpcId=vpc.id)
+
+# Allow incoming traffic on port 80 (HTTP) from any source
+sec_group.authorize_ingress(
+    CidrIp='0.0.0.0/0',
+    IpProtocol='tcp',
+    FromPort=80,
+    ToPort=80
+)
+
+print(f"Security Group Created with ID: {sec_group.id}")
+/private POTR_Security_Group
+# Create a security group inside the VPC
+sec_group = ec2.create_security_group(
+    GroupName='POTR_Security_Group', Description='POTR SG', VpcId=vpc.id)
+
+# Allow incoming traffic on port 80 (HTTP) from any source
+sec_group.authorize_ingress(
+    CidrIp='0.0.0.0/0',
+    IpProtocol='tcp',
+    FromPort=80,
+    ToPort=80
+)
+
+print(f"Security Group Created with ID: {sec_group.id}")
+/versioning
+import boto3
+
+# Create S3 client
+s3 = boto3.client('s3')
+
+BUCKET_NAME = 'potr-data-bucket'  # Replace with your S3 bucket name
+
+# Enable versioning on the bucket
+s3.put_bucket_versioning(
+    Bucket=BUCKET_NAME,
+    VersioningConfiguration={
+        'Status': 'Enabled'
+    }
+)
+
+print(f"Versioning enabled for bucket {BUCKET_NAME}.")
+/backups
+import boto3
+
+# Create RDS client
+rds = boto3.client('rds')
+
+DB_INSTANCE_IDENTIFIER = 'POTR_DB_Instance'  # Replace with your RDS instance name
+
+# Modify RDS instance to set backup retention period
+response = rds.modify_db_instance(
+    DBInstanceIdentifier=DB_INSTANCE_IDENTIFIER,
+    BackupRetentionPeriod=14  # Set retention period (e.g., 14 days)
+)
+
+print(f"Modified backup retention for {DB_INSTANCE_IDENTIFIER} to {response['DBInstance']['BackupRetentionPeriod']} days.")
+/cloudwatch
+import boto3
+
+# Create RDS client
+rds = boto3.client('rds')
+
+DB_INSTANCE_IDENTIFIER = 'POTR_DB_Instance'  # Replace with your RDS instance name
+
+# Modify RDS instance to set backup retention period
+response = rds.modify_db_instance(
+    DBInstanceIdentifier=DB_INSTANCE_IDENTIFIER,
+    BackupRetentionPeriod=14  # Set retention period (e.g., 14 days)
+)
+
+print(f"Modified backup retention for {DB_INSTANCE_IDENTIFIER} to {response['DBInstance']['BackupRetentionPeriod']} days.")
+/budget
+import boto3
+
+# Create RDS client
+rds = boto3.client('rds')
+
+DB_INSTANCE_IDENTIFIER = 'POTR_DB_Instance'  # Replace with your RDS instance name
+
+# Modify RDS instance to set backup retention period
+response = rds.modify_db_instance(
+    DBInstanceIdentifier=DB_INSTANCE_IDENTIFIER,
+    BackupRetentionPeriod=14  # Set retention period (e.g., 14 days)
+)
+
+print(f"Modified backup retention for {DB_INSTANCE_IDENTIFIER} to {response['DBInstance']['BackupRetentionPeriod']} days.")
+/cost and usage
+import boto3
+from datetime import datetime, timedelta
+
+# Create a Cost Explorer client
+ce_client = boto3.client('ce')
+
+# Get cost and usage for the last 7 days for POTR
+response = ce_client.get_cost_and_usage(
+    TimePeriod={
+        'Start': (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
+        'End': datetime.now().strftime('%Y-%m-%d')
+    },
+    Granularity='DAILY',
+    Metrics=['UnblendedCost'],
+    Filter={
+        'Dimensions': {
+            'Key': 'LINKED_ACCOUNT',
+            'Values': ['<YOUR_AWS_ACCOUNT_ID>']  # Replace with POTR's AWS account ID
+        }
+    }
+)
+
+for result in response['ResultsByTime']:
+    print(result['TimePeriod']['Start'], result['Total']['UnblendedCost']['Amount'])
+
+/buget alert
+import boto3
+
+# Create a Budgets client
+budgets_client = boto3.client('budgets')
+
+# Set up a budget for POTR
+response = budgets_client.create_budget(
+    AccountId='<YOUR_AWS_ACCOUNT_ID>',  # Replace with POTR's AWS account ID
+    Budget={
+        'BudgetName': 'POTR-MonthlyBudget',
+        'BudgetLimit': {
+            'Amount': '1000',  # Set your desired budget amount
+            'Unit': 'USD'
+        },
+        'CostFilters': {
+            'Service': ['Amazon EC2', 'Amazon S3']  # Just an example, list all services you want to track
+        },
+        'TimeUnit': 'MONTHLY',
+    },
+    NotificationsWithSubscribers=[
+        {
+            'Notification': {
+                'ComparisonOperator': 'GREATER_THAN',
+                'Threshold': 80,  # Notify when usage is over 80% of the budget
+                'ThresholdType': 'PERCENTAGE',
+                'NotificationType': 'ACTUAL'
+            },
+            'Subscribers': [
+                {
+                    'SubscriptionType': 'EMAIL',
+                    'Address': 'admin@potr.com'  # Notify this email address
+                }
+            ]
+        }
+    ]
+)
+
+print("Budget created:", response['Budget']['BudgetName'])
+/cost track
+import boto3
+from datetime import datetime, timedelta
+
+# Create a Cost Explorer client
+ce_client = boto3.client('ce')
+
+# Get cost and usage for the last 7 days for POTR
+response = ce_client.get_cost_and_usage(
+    TimePeriod={
+        'Start': (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
+        'End': datetime.now().strftime('%Y-%m-%d')
+    },
+    Granularity='DAILY',
+    Metrics=['UnblendedCost'],
+    Filter={
+        'Dimensions': {
+            'Key': 'LINKED_ACCOUNT',
+            'Values': ['<YOUR_AWS_ACCOUNT_ID>']  # Replace with POTR's AWS account ID
+        }
+    }
+)
+
+for result in response['ResultsByTime']:
+    print(result['TimePeriod']['Start'], result['Total']['UnblendedCost']['Amount'])
+
+POTR_Server
+Resources:
+  POTRApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: POTRApp
+
+  POTRDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref POTRApplication
+      DeploymentGroupName: POTRDeploymentGroup
+      ServiceRoleArn: arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/CodeDeployServiceRole
+      Ec2TagFilters:
+        - Key: 'Name'
+          Value: 'POTRServer'
+          Type: 'KEY_AND_VALUE'
+
+  POTRPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: POTRPipeline
+      RoleArn: arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/CodePipelineServiceRole
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                RepositoryName: PowerOnTheRoof
+                BranchName: master
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName: !Ref POTRApplication
+                DeploymentGroupName: !Ref POTRDeploymentGroup
+
+/appspec 
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /var/www/html
+hooks:
+  ApplicationStop:
+    - location: scripts/stop_server
+  BeforeInstall:
+    - location: scripts/install_dependencies
+  AfterInstall:
+    - location: scripts/start_server
